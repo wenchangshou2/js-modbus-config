@@ -25,6 +25,9 @@
             <el-form-item label="MQTT 端口:">
                 <el-input v-model="mqttConf.port" placeholder="mqtt port"></el-input>
             </el-form-item>
+            <el-form-item label="MQTT 主题:">
+                <el-input v-model="mqttConf.topic" placeholder="mqtt topic"></el-input>
+            </el-form-item>
             <el-form-item label="">
                 <el-button type="primary" @click="connectMqtt">连接</el-button>
             </el-form-item>
@@ -177,6 +180,10 @@
                     </el-form-item>
                 </el-form>
             </el-tab-pane>
+        <el-tab-pane label="MQTT配置" name="mqtt">
+            <el-form>
+            </el-form>
+        </el-tab-pane>
         </el-tabs>
     </div>
 </template>
@@ -197,7 +204,8 @@ export default {
             configFilePath: '',
             mqttConf: {
                 host: 'localhost',
-                port: 1883
+                port: 1883,
+                topic: ''
             },
             general: {
                 "read-timeout": 0,
@@ -290,6 +298,12 @@ export default {
                 this.getData(newName)
             }
             console.log('active', newName)
+        },
+        activeName(newPage) {
+            console.log('newpage',newPage);
+            if(newPage === 'call'){
+                this.getCallData()
+            }
         }
     },
     methods: {
@@ -299,11 +313,9 @@ export default {
         connectMqtt() {
             console.log('connect mqtt',this.mqtt);
             let mqttConf=this.mqttConf
-            this.mqtt = new mqttClient(mqttConf.host, mqttConf.port)
+            this.mqtt = new mqttClient(mqttConf.host, mqttConf.port,mqttConf.topic)
             this.mqtt.open()
-            this.mqtt.on('message',(message)=>{
-                console.log('message', message);
-            })
+            this.mqtt.on('message',this.onMessage)
         },
         resetData() {
             this.dataInfo = {
@@ -316,6 +328,10 @@ export default {
                 enable: false
             }
 
+        },
+        onMessage(message) {
+            console.log('message111', message);
+            alert(message)
         },
         deleteMultiData() {
             // console.log(this.dataArray);
