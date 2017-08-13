@@ -125,9 +125,19 @@
                     <el-table-column prop="ref_type" label="数据类型" width="100" v-if="selectCellType==='AI'||selectCellType==='AO'">
 
                     </el-table-column>
-                    <el-table-column prop="addr" label="地址" width="180">
+                    <el-table-column prop="addr" label="地址" width="100">
                     </el-table-column>
-                    <el-table-column prop="enable" label="是否启用" width="100">
+                    <el-table-column label="实时值" prop="value" width="180">
+                    </el-table-column>
+                    <!-- <el-table-column prop="enable" label="是否启用" width="100">
+                    </el-table-column> -->
+                    <el-table-column label="是否启用" width="120">
+                        <template scope="scope">
+                            <el-switch v-model="dataArray[scope.$index].enable" on-color="#13ce66" off-color="#ff4949"
+                            @change="onChangeEnable(scope.$index,scope.row)">
+                            </el-switch>
+
+                        </template>
                     </el-table-column>
                     <el-table-column label="操作">
                         <template scope="scope">
@@ -196,6 +206,7 @@ import { deep } from 'common/common.js'
 import { readFileSync, writeFileSync } from 'fs'
 import {mqttClient} from 'common/mqtt.js'
 let ini = require('ini')
+let YAML = require('yamljs');
 export default {
     data() {
         return {
@@ -310,12 +321,22 @@ export default {
         sendMqtt() {
             this.mqtt.send()
         },
+        onChangeEnable(index,row){
+            // this.dataArray[index] = row
+            console.log('row',row);
+            console.log(this.config);
+            this.config[row.name].enable=row.enable
+        },
         connectMqtt() {
             console.log('connect mqtt',this.mqtt);
             let mqttConf=this.mqttConf
             this.mqtt = new mqttClient(mqttConf.host, mqttConf.port,mqttConf.topic)
             this.mqtt.open()
-            this.mqtt.on('message',this.onMessage)
+            // this.mqtt.on('data',this.onData)
+            // this.mqtt.on('event',function(message){
+            //     console.log('fffffff');
+            // })
+            this.mqtt.on('data', this.onData)
         },
         resetData() {
             this.dataInfo = {
@@ -329,9 +350,35 @@ export default {
             }
 
         },
-        onMessage(message) {
-            console.log('message111', message);
-            alert(message)
+        _changeValue(id,value){
+            console.log(id,value);
+            let arr = this.dataArray
+            for(let index in arr){
+                if(arr[index].id===id){
+                    arr[index]['value']=value
+                }
+            }
+        },
+        onData(message) {
+            let selectItem = this.selectCellType
+            if(selectItem==='AI'||selectItem==='AO'){
+                let outputs = message[selectItem].outputs
+                for(let index in outputs){
+                    this._changeValue(index,outputs[index].v)
+                    console.log(index);
+
+                }
+            }else if(selectItem==='DO'||selectItem==='DI'){
+                // let ids = message[selectItem]['v']
+                let ids=message[selectItem].ids
+                for(let index in ids){
+                    this._changeValue(index, ids[index].v)
+                }
+            }
+            // for(let item in message[]){
+            //     console.log(item);
+
+            // }
         },
         deleteMultiData() {
             // console.log(this.dataArray);
@@ -354,9 +401,7 @@ export default {
                 addr: info.addr,
                 count: info.count
             }
-            console.log('y', this.config[info.name]);
             if (this.config[info.name] != undefined) {
-                console.log('fffffff');
                 this.onModifyCall()
             } else {
                 this.config[info.name] = tmp
@@ -400,9 +445,6 @@ export default {
                 ref_type: info.ref_type,
                 addr: info.addr
             }
-            // if (this.modifyCallName != this.callInfo.name) {
-            //     delete this.config[this.modifyCallName]
-            // }
             console.log('name', info.name)
             this.config[info.name] = tmp
             console.log('change:', this.config[info.name], tmp);
@@ -420,16 +462,22 @@ export default {
             for (let item in config) {
                 if (config[item]["id"] !== undefined && config[item].type === type) {
                     let cur = config[item]
+                    console.log(cur);
                     tmp = {
                         name: item,
                         id: cur.id,
                         type: cur.type,
                         addr: cur.addr,
                         // ref_type: config[item].ref_type,
-                        enable: cur.enable | 0
+                        enable: cur.enable===1
                     }
                     if (select === "AO" || select === "AI") {
                         tmp['ref_type'] = config[item].ref_type
+                        tmp['value'] = 0
+                        tmp['unit']=config[item].unit || ''
+                        console.log(config[item]);
+                    }else{
+                        tmp['value']=0
                     }
                     console.log('tmp', tmp);
                     this.dataArray.push(tmp)
@@ -489,7 +537,13 @@ export default {
             this.saveConfigFile()
         },
         saveConfigFile() {
-            writeFileSync(this.configFilePath, ini.stringify(this.config, ))
+            let configPath = this.configFilePath
+            if(configPath.indexOf('yaml')>=0){
+                writeFileSync(this.configFilePath,YAML.stringify(this.config) )
+
+            }else{
+                writeFileSync(this.configFilePath, ini.stringify(this.config))
+            }
         },
         handleClick(e) {
 
@@ -500,12 +554,18 @@ export default {
         previewContent(event) {
             var input = event.target
             if (input.files && input.files[0]) {
+                let config
+                let fileName = input.files[0].name
                 this.configFilePath = input.files[0].path
                 let data = readFileSync(input.files[0].path, 'utf-8').toString()
-                let config = ini.parse(data)
+                if(fileName.indexOf('yaml')>=0){
+                    config  = YAML.parse(data)
+                }else if(fileName.indexOf('ini')>=0){
+                    config = ini.parse(data)
+                }
+                console.log(config);
                 this.config = config
                 this.parserGeneral(config['general'])
-                console.log(config);
             }
         }
     }

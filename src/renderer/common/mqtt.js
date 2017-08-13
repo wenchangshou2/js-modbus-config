@@ -1,14 +1,15 @@
 var mqtt = require('mqtt')
-var events = require('events')
-export class mqttClient extends events.EventEmitter{
+const EventEmitter = require('events');
+var emitter = new EventEmitter();
+export class mqttClient extends EventEmitter{
+
     constructor(host,port,topic) {
         super()
         this.host=host
         this.port=port
         this.topic=topic
         // mqttClient.sefl = this
-        events.EventEmitter.bind(this)
-    }
+    };
     open(){
         if(mqttClient.client!=undefined &&mqttClient.client.connected){
             // alert('已经连接')
@@ -20,6 +21,7 @@ export class mqttClient extends events.EventEmitter{
         // var _this = this
         this.onConnect=this.onConnect.bind(this)
         this.onClose=this.onClose.bind(this)
+        this.onMessage = this.onMessage.bind(this)
         mqttClient.client.on('connect', this.onConnect)
         mqttClient.client.on('message',this.onMessage)
         mqttClient.client.on('close',this.onClose)
@@ -30,7 +32,9 @@ export class mqttClient extends events.EventEmitter{
         client.publish('test','send')
     }
     onMessage(topic,message) {
-        console.log(topic,message.toString());
+        let obj = JSON.parse(message.toString())
+        // console.log('obj',obj)
+        this.emit('data', obj)
     }
     onConnect(){
         mqttClient.client.subscribe(this.topic)
