@@ -17,14 +17,9 @@ export class mqttClient extends EventEmitter{
             return
         }
         mqttClient.client = mqtt.connect({ host: this.host, port: parseInt(this.port) })
-        this.onConnect.bind(this)
-        // var _this = this
-        this.onConnect=this.onConnect.bind(this)
-        this.onClose=this.onClose.bind(this)
-        this.onMessage = this.onMessage.bind(this)
-        mqttClient.client.on('connect', this.onConnect)
-        mqttClient.client.on('message',this.onMessage)
-        mqttClient.client.on('close',this.onClose)
+        mqttClient.client.on('connect', this.onConnect.bind(this))
+        mqttClient.client.on('message', this.onMessage.bind(this))
+        mqttClient.client.on('close', this.onClose.bind(this))
         // this.onConnect.bind(this)
     }
     send() {
@@ -33,7 +28,7 @@ export class mqttClient extends EventEmitter{
     }
     onMessage(topic,message) {
         let obj = JSON.parse(message.toString())
-        // console.log('obj',obj)
+        console.log('obj',obj)
         this.emit('data', obj)
     }
     onConnect(){
