@@ -41,6 +41,7 @@
     </div>
 </template>
 <script>
+import {mapState} from'vuex'
 import {callTypeOptions} from '@/common/data'
 import { deep } from '@/common/common.js'
 export default {
@@ -53,6 +54,7 @@ export default {
                 addr:0,
                 count:0
             },
+            callArray:[],
             callTypeOptions: callTypeOptions
         }
     },
@@ -64,18 +66,31 @@ export default {
             }
         }
     },
-    computed:{
-        callArray:function(){
-            let arr=[]
-            for(let item in this.config){
-                if(this.config[item]['count']!==undefined){
-                    let tmpObj=deep(this.config[item])
-                    tmpObj['name']=item
-                    arr.push(tmpObj)
-                }
+    watch:{
+        activePage(newPage){
+            if(newPage==='call'){
+                this.getArray()
             }
-            return arr
         }
+    },
+    computed:{
+        // callArray:function(){
+        //     console.log('computed',this.config);
+        //     let arr=[]
+        //     for(let item in this.config){
+        //         if(this.config[item]['count']!==undefined){
+        //             let tmpObj=deep(this.config[item])
+        //             tmpObj['name']=item
+        //             arr.push(tmpObj)
+        //         }
+        //     }
+        //     console.log('arr',arr);
+        //     return arr
+        // }
+        ...mapState([
+            'activePage'
+        ]
+        )
     },
     methods: {
         handleEdit(index, row) {
@@ -85,7 +100,19 @@ export default {
         handleDelete(index, row) {
             console.log(index, row);
             delete this.config[row.name]
-            this.getCallData()
+            // this.getCallData()
+        },
+        getArray(){
+            let arr=[]
+            for(let item in this.config){
+                if(this.config[item]['count']!==undefined){
+                    let tmpObj=deep(this.config[item])
+                    tmpObj['name']=item
+                    arr.push(tmpObj)
+                }
+            }
+            this.callArray=arr
+            console.log('arr',arr);
         },
         handleEdit(index, row) {
             this.modifyCallName = row.name
@@ -117,7 +144,7 @@ export default {
             } else {
                 this.config[info.name] = tmp
             }
-            // this.$forceUpdate();
+            this.$forceUpdate();
             // this.getCallData()
         },
     }

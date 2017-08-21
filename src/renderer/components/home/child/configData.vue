@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-row>
+        <el-row style="padding-bottom:20px;width:80%">
             <el-col :span="2">
                 召唤类型：
             </el-col>
@@ -20,10 +20,14 @@
             </el-table-column>
             <el-table-column prop="type" label="召唤类型" width="100">
             </el-table-column>
+            <el-table-column prop="unit" label="单位" width="100">
+            </el-table-column>
             <el-table-column prop="ref_type" label="数据类型" width="100" v-if="selectCellType==='AI'||selectCellType==='AO'">
     
             </el-table-column>
             <el-table-column prop="addr" label="地址" width="100">
+            </el-table-column>
+            <el-table-column prop="naddr" label="逻辑地址" width="100">
             </el-table-column>
             <el-table-column label="实时值" prop="value" width="180">
             </el-table-column>
@@ -38,6 +42,7 @@
             </el-table-column>
             <el-table-column label="操作">
                 <template scope="scope">
+                    <el-button size="small" @click="changeData(scope.$index,scope.row)">改变</el-button>
                     <el-button size="small" @click="handleDataEdit(scope.$index, scope.row)">编辑</el-button>
                     <el-button size="small" type="danger" @click="handleDataDelete(scope.$index, scope.row)">删除</el-button>
                 </template>
@@ -70,11 +75,17 @@
             <el-form-item label="召唤地址">
                 <el-input v-model="dataInfo.addr" placeholder="召唤地址"></el-input>
             </el-form-item>
+            <el-form-item label="逻辑地址">
+                <el-input v-model="dataInfo.naddr" placeholder="逻辑地址"></el-input>
+            </el-form-item>
             <el-form-item label="数据类型" v-if="selectCellType==='AI'||selectCellType==='AO'">
                 <el-select v-model="dataInfo.ref_type">
                     <el-option v-for="item in dataType" :key="item.value" :label="item.label" :value="item.value">
                     </el-option>
                 </el-select>
+            </el-form-item>
+            <el-form-item label="单位" v-if="selectCellType=='AI'||selectCellType=='AO'">
+                <el-input v-model="dataInfo.unit" placeholder="单位"></el-input>
             </el-form-item>
             <el-form-item label="是否启用">
                 <el-switch v-model="dataInfo.enable" on-color="#13ce66" off-color="#ff4949">
@@ -92,6 +103,7 @@
 
 </style>
 <script>
+import {mapState} from 'vuex'
 import { callTypeOptions, dataType } from '@/common/data'
 import { deep } from '@/common/common.js'
 export default {
@@ -106,29 +118,50 @@ export default {
                 unit: '',
                 ref_len: '',
                 ref_type: '',
+                naddr:'',
                 enable: false
             },
+            dataArray: [],
             dataType: dataType
         }
     },
     methods: {
+        changeData(index,row){
+            let self = this
+            this.$prompt(
+                '请输入需要写入的值', '写入', {
+                    confirmButtonText:'写入',
+                    cancelButtonText:'取消'
+                }
+            ).then(({value})=>{
+                console.log(self.selectCellType, row,value);
+                let tmp = {
+                    addr: row.addr,
+                    type: self.selectCellType,
+                    value: value
+                }
+                console.log('emit');
+                self.$emit('change')
+            }).catch(()=>{
+
+            })
+
+            console.log(index,row);
+        },
         handleDataEdit(index, row) {
             this.dataInfo = deep(row)
             this.dataInfo.enable = row.enable === 1
         },
         onChangeEnable(index, row) {
             // this.dataArray[index] = row
-            console.log('row', row);
-            console.log(this.config);
             this.config[row.name].enable = row.enable
         },
         handleSelectionChange(val) {
             this.multipleSelection = val
         },
         handleDataDelete(index, row) {
-            console.log('delete');
             delete this.config[row.name]
-            console.log(this.config[row.name], row.name);
+            this.getArrayData()
         },
         resetData() {
             this.dataInfo = {
@@ -176,6 +209,7 @@ export default {
                 console.log('config', this.config);
                 this.config[info.name] = tmp
             }
+            this.getArrayData()
         },
         deleteMultiData() {
             // console.log(this.dataArray);
@@ -185,25 +219,14 @@ export default {
             let multipleSelection = this.multipleSelection
             multipleSelection.forEach(function (d) {
                 delete self.config[d.name]
-                self.getData()
             }, this);
+            this.getArrayData()
         },
-    },
-    props: {
-        config: {
-            type: Object,
-            default() {
-                return {}
-            }
-        }
-    },
-    computed: {
-        dataArray() {
-            console.log('dataarray');
+        getArrayData(){
             let tmp = {}
             let arr = []
+            this.dataArray=null
             let select = this.selectCellType
-            // let config = this.config
             for (let item in this.config) {
                 if (this.config[item]["id"] !== undefined && this.config[item].type === select) {
                     let cur =deep(this.config[item])
@@ -214,6 +237,7 @@ export default {
                         addr: cur.addr,
                         enable: cur.enable === 1
                     }
+                    tmp['naddr']=this.config[item].naddr||''
                     if (select === 'AO' || select === 'AI') {
                         tmp['ref_type'] = this.config[item].ref_type
                         tmp['value'] = 0
@@ -224,8 +248,70 @@ export default {
                     arr.push(tmp)
                 }
             }
-            return arr
+            this.dataArray = arr
+        },
+        _changeValue(id, value) {
+            // console.log('change', id, value);
+            let arr = this.dataArray
+            for (let index in arr) {
+                // console.log(arr[index].id, id);
+                if (arr[index].id === id) {
+                    console.log('change');
+                    arr[index]['value'] = value
+                }
+            }
+        },
+    },
+    props: {
+        config: {
+            type: Object
         }
+    },
+    watch:{
+        config(value){
+            console.log('change');
+            setTimeout(this.$forceUpdate,200)
+            // this.$forceUpdate()
+        },
+        activePage(newPage){
+            if(newPage==='data'){
+                this.getArrayData()
+
+            }
+        },
+        selectCellType(v){
+            console.log('vv',v);
+            this.getArrayData()
+        },
+        plcData(data){
+            console.log('plc data',data);
+            console.log('data',this.dataArray);
+            let arr = this.dataArray
+
+            let selectItem = this.selectCellType
+            if (selectItem === 'AI' || selectItem === 'AO') {
+                if(data[selectItem]==undefined){
+                    return
+                }
+                let ids = data[selectItem].ids
+                for (let index in ids) {
+                    console.log('ids',ids[index]);
+                    this._changeValue(index, ids[index].output.v)
+                }
+            } else if (selectItem === 'DO' || selectItem === 'DI') {
+                let ids = data[selectItem].ids
+                for (let index in ids) {
+                    console.log(ids[index].output);
+                    this._changeValue(index, ids[index].output.v)
+                }
+            }
+        }
+    },
+    computed: {
+        ...mapState([
+            'activePage',
+            'plcData'
+        ])
     }
 }
 </script>

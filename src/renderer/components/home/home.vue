@@ -40,10 +40,10 @@
             </el-tab-pane>
             <el-tab-pane label="召唤数据配置" name="call">
     
-                <call v-bind:config="config" ></call>
+                <call v-bind:config="config" v-bind:change="WriteData" ></call>
     
             </el-tab-pane>
-            <el-tab-pane label="数据编辑" name="AI">
+            <el-tab-pane label="数据编辑" name="data">
                 <config-data v-bind:config="config"></config-data>
             </el-tab-pane>
             <el-tab-pane label="MQTT配置" name="mqtt">
@@ -58,6 +58,7 @@
 </style>
 
 <script>
+import { mapMutations } from 'vuex'
 import { deep } from 'common/common.js'
 import { readFileSync, writeFileSync } from 'fs'
 import { mqttClient } from 'common/mqtt.js'
@@ -98,18 +99,15 @@ export default {
     },
     watch: {
         selectCellType(newName) {
-            if (newName === "call") {
-                // this.getCallData()
-            } else {
-                this.getData(newName)
-            }
+            // if (newName === "call") {
+            //     // this.getCallData()
+            // } else {
+            //     this.getData(newName)
+            // }
             console.log('active', newName)
         },
         activeName(newPage) {
-            // console.log('newpage', newPage);
-            // if (newPage === 'call') {
-            //     this.getCallData()
-            // }
+            this.setPage(newPage)
         }
     },
     created() {
@@ -124,11 +122,8 @@ export default {
         sendMqtt() {
             this.mqtt.send()
         },
-        onChangeEnable(index, row) {
-            // this.dataArray[index] = row
-            console.log('row', row);
-            console.log(this.config);
-            this.config[row.name].enable = row.enable
+        WriteData(){
+            console.log('write',data);
         },
         connectMqtt() {
             console.log('connect mqtt', this.mqtt);
@@ -141,81 +136,15 @@ export default {
             // })
             this.mqtt.on('data', this.onData)
         },
-        _changeValue(id, value) {
-            // console.log('change', id, value);
-            let arr = this.dataArray
-            for (let index in arr) {
-                // console.log(arr[index].id, id);
-                if (arr[index].id === id) {
-                    console.log('change');
-                    arr[index]['value'] = value
-                }
-            }
-        },
         onData(message) {
+            console.log('message',message);
             let now = new Date()
+
             this.mqttLastUpdate = now
-            let selectItem = this.selectCellType
-            console.log(now);
-            if (selectItem === 'AI' || selectItem === 'AO') {
-                let ids = message[selectItem].ids
-                for (let index in ids) {
-                    this._changeValue(index, ids[index].outputs.v)
-                }
-            } else if (selectItem === 'DO' || selectItem === 'DI') {
-                console.log(message);
-                let ids = message[selectItem].ids
-                for (let index in ids) {
-                    console.log(ids[index].output);
-                    this._changeValue(index, ids[index].output.v)
-                }
-            }
+            this.setPlc(message)
         },
         onSelectLine(selection, row) {
             console.log(selection, row);
-        },
-        getData(type) {
-            console.log('getdata', type);
-            if (type === undefined) {
-                type = this.selectCellType
-            }
-            let tmp = {}
-            this.dataArray = []
-            let select = this.selectCellType
-            let config = this.config
-            for (let item in config) {
-                if (config[item]["id"] !== undefined && config[item].type === type) {
-                    let cur = config[item]
-                    console.log(cur);
-                    tmp = {
-                        name: item,
-                        id: cur.id,
-                        type: cur.type,
-                        addr: cur.addr,
-                        // ref_type: config[item].ref_type,
-                        enable: cur.enable === 1
-                    }
-                    if (select === "AO" || select === "AI") {
-                        tmp['ref_type'] = config[item].ref_type
-                        tmp['value'] = 0
-                        tmp['unit'] = config[item].unit || ''
-                        console.log(config[item]);
-                    } else {
-                        tmp['value'] = 0
-                    }
-                    console.log('tmp', tmp);
-                    this.dataArray.push(tmp)
-                }
-            }
-        },
-        handleDataDelete(index, row) {
-            delete this.config[row.name]
-            this.getData()
-        },
-        handleDataEdit(index, row) {
-            this.dataInfo = deep(row)
-            this.dataInfo.enable = row.enable === 1
-            this.getData()
         },
         saveGeneral() {
             console.log('saveGeneral');
@@ -234,6 +163,10 @@ export default {
         handleClick(e) {
 
         },
+        ...mapMutations ({
+            setPage:'SET_ACTIVE_PAGE',
+            setPlc:'SET_PLC_DATA'
+        }),
         parserGeneral(general) {
             console.log('general', general);
             this.general = general
